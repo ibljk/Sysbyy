@@ -2,6 +2,45 @@
 
 高校实验室设备预约管理 Web 应用：**用户端**浏览带图设备、发起预约、**自助拍照归还**；**管理端**维护设备（含设备配图）、审批与核验用户归还的留痕照片、统计看板等。**前后端分离**，数据库内置演示数据，开箱即用。
 
+## 系统预览
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/login.jpg" alt="登录页"></td>
+<td width="50%"><img src="docs/screenshots/book.jpg" alt="用户端设备预约"></td>
+</tr>
+<tr>
+<td><sub><b>登录页</b> · 深蓝科技背景 + 居中玻璃卡，管理员与普通用户共用一个入口</sub></td>
+<td><sub><b>用户端设备预约</b> · 图片卡片网格、实时库存状态（空闲 N 台 / 已约满 / 维修中）与公告横幅</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/approval.jpg" alt="预约管理"></td>
+<td><img src="docs/screenshots/dashboard.jpg" alt="统计看板"></td>
+</tr>
+<tr>
+<td><sub><b>预约管理</b> · 审批 / 驳回 / 核验用户归还的留痕照片，支持跨天时段展示</sub></td>
+<td><sub><b>统计看板</b> · 台数口径的设备概览、近 7 日趋势与设备使用排行</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/equipment_rule.jpg" alt="仪器级预约规则"></td>
+<td><img src="docs/screenshots/maintenance.jpg" alt="维护窗口"></td>
+</tr>
+<tr>
+<td><sub><b>仪器级预约规则</b> · 每台设备可单独配置最短时长 / 最长跨度 / 是否跨天 / 是否需资质</sub></td>
+<td><sub><b>维护窗口</b> · 设备停机排期，与已有预约冲突时直接拒绝创建</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/qualification.jpg" alt="资质准入"></td>
+<td><img src="docs/screenshots/repair.jpg" alt="设备报修"></td>
+</tr>
+<tr>
+<td><sub><b>资质准入</b> · 需持证设备仅持有效资质的用户可预约，支持授予 / 撤销 / 过期</sub></td>
+<td><sub><b>设备报修</b> · 用户提交报修并跟踪进度，管理员受理 → 完成，形成运维闭环</sub></td>
+</tr>
+</table>
+
+> 以上截图取自本仓库自带的演示数据，按「五、快速启动」跑起来即可复现。
+
 ## 一、技术栈
 
 | 端 | 技术 |
