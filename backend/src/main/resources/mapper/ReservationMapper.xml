@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lab.equipment.mapper.ReservationMapper">
+
+    <!-- 分页查询预约列表（关联用户、设备、实验室；列表不返回归还大图） -->
+    <select id="selectVOPage" resultType="com.lab.equipment.vo.ReservationVO">
+        SELECT r.id,
+               r.user_id,
+               u.username,
+               u.real_name,
+               r.equipment_id,
+               e.name       AS equipmentName,
+               e.code       AS equipmentCode,
+               e.image      AS equipmentImage,
+               r.lab_id,
+               l.name       AS labName,
+               r.date,
+               r.end_date,
+               r.start_time,
+               r.end_time,
+               r.purpose,
+               r.status,
+               r.approve_comment,
+               r.return_note,
+               r.returned_at,
+               r.create_time
+        FROM reservation r
+                 LEFT JOIN `user` u ON r.user_id = u.id
+                 LEFT JOIN equipment e ON r.equipment_id = e.id
+                 LEFT JOIN lab l ON r.lab_id = l.id
+        <where>
+            <if test="userId != null">
+                AND r.user_id = #{userId}
+            </if>
+            <if test="status != null and status != ''">
+                AND r.status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (e.name LIKE CONCAT('%', #{keyword}, '%')
+                OR e.code LIKE CONCAT('%', #{keyword}, '%')
+                OR u.username LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="dateFrom != null">
+                AND r.date &gt;= #{dateFrom}
+            </if>
+            <if test="dateTo != null">
+                AND r.date &lt;= #{dateTo}
+            </if>
+        </where>
+        ORDER BY r.date DESC, r.start_time DESC, r.id DESC
+    </select>
+
+    <!-- 时间冲突检测：统计同一设备与 [start, end) 时间区间重叠的未完成预约数（跨天兼容） -->
+    <select id="countConflict" resultType="long">
+        SELECT COUNT(*)
+        FROM reservation
+        WHERE equipment_id = #{equipmentId}
+          AND status IN ('PENDING', 'APPROVED')
+          AND CONCAT(IFNULL(end_date, date), ' ', end_time) &gt; #{start}
+          AND CONCAT(date, ' ', start_time) &lt; #{end}
+    </select>
+
+    <!-- 查询单条预约详情（含归还照片） -->
+    <select id="selectVOById" resultType="com.lab.equipment.vo.ReservationVO">
+        SELECT r.id,
+               r.user_id,
+               u.username,
+               u.real_name,
+               r.equipment_id,
+               e.name       AS equipmentName,
+               e.code       AS equipmentCode,
+               e.image      AS equipmentImage,
+               r.lab_id,
+               l.name       AS labName,
+               r.date,
+               r.end_date,
+               r.start_time,
+               r.end_time,
+               r.purpose,
+               r.status,
+               r.approve_comment,
+               r.return_image,
+               r.return_note,
+               r.returned_at,
+               r.create_time
+        FROM reservation r
+                 LEFT JOIN `user` u ON r.user_id = u.id
+                 LEFT JOIN equipment e ON r.equipment_id = e.id
+                 LEFT JOIN lab l ON r.lab_id = l.id
+        WHERE r.id = #{id}
+    </select>
+
+    <!-- 统计设备是否存在进行中（已通过且未到结束时刻）的预约 -->
+    <select id="countActiveApproved" resultType="long">
+        SELECT COUNT(*)
+        FROM reservation
+        WHERE equipment_id = #{equipmentId}
+          AND status = 'APPROVED'
+          AND (IFNULL(end_date, date) &gt; CURDATE()
+               OR (IFNULL(end_date, date) = CURDATE() AND end_time &gt; CURTIME()))
+    </select>
+
+    <!-- 近7日预约趋势（按预约日期） -->
+    <select id="selectWeekTrend" resultType="map">
+        SELECT DATE_FORMAT(date, '%m-%d')                        AS date,
+               COUNT(*)                                          AS count,
+               SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) AS approved
+        FROM reservation
+        WHERE date &gt;= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+        GROUP BY date
+        ORDER BY date
+    </select>
+
+    <!-- 预约状态分布 -->
+    <select id="selectStatusDist" resultType="map">
+        SELECT status, COUNT(*) AS count
+        FROM reservation
+        GROUP BY status
+    </select>
+
+    <!-- 实验室预约量排行 -->
+    <select id="selectLabRank" resultType="map">
+        SELECT IFNULL(l.name, '未知实验室') AS labName,
+               COUNT(r.id)                  AS count
+        FROM reservation r
+                 LEFT JOIN lab l ON r.lab_id = l.id
+        GROUP BY r.lab_id, l.name
+        ORDER BY count DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lab.equipment.mapper.EquipmentMapper">
+
+    <!-- 悲观锁查询设备行，保证并发预约时冲突校验的原子性 -->
+    <select id="selectByIdForUpdate" resultType="com.lab.equipment.entity.Equipment">
+        SELECT *
+        FROM equipment
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <!-- 分页查询设备（关联类别与实验室） -->
+    <select id="selectEquipmentVOPage" resultType="com.lab.equipment.vo.EquipmentVO">
+        SELECT e.id,
+               e.category_id,
+               c.name            AS categoryName,
+               e.lab_id,
+               l.name            AS labName,
+               e.name,
+               e.model,
+               e.code,
+               e.status,
+               e.stock,
+               e.min_minutes,
+               e.max_days,
+               e.allow_cross_day,
+               e.need_qualification,
+               e.purchase_date,
+               e.description,
+               e.image,
+               e.version,
+               (SELECT COUNT(*)
+                FROM reservation r2
+                WHERE r2.equipment_id = e.id
+                  AND r2.status = 'APPROVED'
+                  AND (r2.date &lt; CURDATE()
+                       OR (r2.date = CURDATE() AND r2.start_time &lt;= CURTIME()))
+                  AND (IFNULL(r2.end_date, r2.date) &gt; CURDATE()
+                       OR (IFNULL(r2.end_date, r2.date) = CURDATE() AND r2.end_time &gt; CURTIME()))) AS occupiedNow
+        FROM equipment e
+                 LEFT JOIN equipment_category c ON e.category_id = c.id
+                 LEFT JOIN lab l ON e.lab_id = l.id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (e.name LIKE CONCAT('%', #{keyword}, '%')
+                OR e.code LIKE CONCAT('%', #{keyword}, '%')
+                OR e.model LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="categoryId != null">
+                AND e.category_id = #{categoryId}
+            </if>
+            <if test="labId != null">
+                AND e.lab_id = #{labId}
+            </if>
+            <choose>
+                <when test="status == 'REPAIR'">
+                    AND e.status = 'REPAIR'
+                </when>
+                <when test="status == 'NORMAL'">
+                    AND e.status &lt;&gt; 'REPAIR'
+                </when>
+            </choose>
+        </where>
+        ORDER BY e.id DESC
+    </select>
+
+    <!-- 设备使用时长 TOP N（按已通过/已完成的预约累计时长统计，支持跨天连续预约） -->
+    <select id="selectTopUsage" resultType="map">
+        SELECT e.name        AS name,
+               SUM(TIMESTAMPDIFF(MINUTE,
+                                 CONCAT(r.date, ' ', r.start_time),
+                                 CONCAT(IFNULL(r.end_date, r.date), ' ', r.end_time))) AS totalMinutes
+        FROM reservation r
+                 JOIN equipment e ON r.equipment_id = e.id
+        WHERE r.status IN ('APPROVED', 'COMPLETED')
+        GROUP BY r.equipment_id, e.name
+        ORDER BY totalMinutes DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 设备台数统计：总台数 / 维修停用台数 / 当前进行中占用台数 -->
+    <select id="selectStockStats" resultType="map">
+        SELECT COALESCE(SUM(e.stock), 0) AS total,
+               COALESCE(SUM(CASE WHEN e.status = 'REPAIR' THEN e.stock ELSE 0 END), 0) AS repair,
+               (SELECT COUNT(*)
+                FROM reservation r
+                WHERE r.status = 'APPROVED'
+                  AND (r.date &lt; CURDATE() OR (r.date = CURDATE() AND r.start_time &lt;= CURTIME()))
+                  AND (IFNULL(r.end_date, r.date) &gt; CURDATE()
+                       OR (IFNULL(r.end_date, r.date) = CURDATE() AND r.end_time &gt; CURTIME()))) AS occupied
+        FROM equipment e
+    </select>
+
+</mapper>

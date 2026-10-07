@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实验室设备预约管理系统 · 数据库设计（E-R 图）</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            background: #f5f7fa;
+            font-family: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+            color: #303133;
+        }
+        .header {
+            background: #001529;
+            color: #fff;
+            padding: 18px 32px;
+            display: flex;
+            align-items: baseline;
+            gap: 14px;
+        }
+        .header h1 { font-size: 20px; margin: 0; }
+        .header span { color: rgba(255,255,255,.6); font-size: 13px; }
+        .content { max-width: 1100px; margin: 24px auto; padding: 0 20px; }
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 4px rgba(0,0,0,.06);
+        }
+        .card h2 { font-size: 17px; margin: 0 0 16px; border-left: 4px solid #409EFF; padding-left: 10px; }
+        .mermaid { text-align: center; }
+        .mermaid svg { max-width: 100%; height: auto; }
+        .legend {
+            display: flex; gap: 20px; flex-wrap: wrap;
+            font-size: 13px; color: #606266; margin-top: 10px;
+        }
+        .legend b { color: #409EFF; }
+        table { border-collapse: collapse; width: 100%; font-size: 13px; }
+        th, td { border: 1px solid #ebeef5; padding: 8px 10px; text-align: left; }
+        th { background: #f5f7fa; font-weight: 600; white-space: nowrap; }
+        .pk { color: #e6a23c; font-weight: 700; }
+        .fk { color: #409EFF; }
+        .uk { color: #67c23a; }
+        .note { font-size: 12px; color: #909399; margin-top: 8px; }
+        .flow { text-align: center; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>实验室设备预约管理系统</h1>
+    <span>数据库设计 · E-R 图 / 状态机 / 核心流程</span>
+</div>
+
+<div class="content">
+    <div class="card">
+        <h2>E-R 图（7 张表）</h2>
+        <div class="mermaid">
+erDiagram
+    USER ||--o{ RESERVATION : "发起"
+    EQUIPMENT ||--o{ RESERVATION : "被预约"
+    LAB ||--o{ EQUIPMENT : "包含"
+    CATEGORY ||--o{ EQUIPMENT : "分类"
+    LAB ||--o{ RESERVATION : "关联"
+
+    USER {
+        bigint id PK
+        varchar username UK
+        varchar password
+        varchar real_name
+        varchar role
+        varchar email
+        varchar phone
+        tinyint status
+        datetime create_time
+        datetime update_time
+    }
+    CATEGORY {
+        bigint id PK
+        varchar name UK
+        varchar description
+        datetime create_time
+    }
+    LAB {
+        bigint id PK
+        varchar name UK
+        varchar location
+        int capacity
+        time open_start_time
+        time open_end_time
+        varchar description
+        datetime create_time
+        datetime update_time
+    }
+    EQUIPMENT {
+        bigint id PK
+        bigint category_id FK
+        bigint lab_id FK
+        varchar name
+        varchar model
+        varchar code UK
+        varchar status
+        date purchase_date
+        varchar description
+        int version
+        datetime create_time
+        datetime update_time
+    }
+    RESERVATION {
+        bigint id PK
+        bigint user_id FK
+        bigint equipment_id FK
+        bigint lab_id FK
+        date date
+        time start_time
+        time end_time
+        varchar purpose
+        varchar status
+        varchar approve_comment
+        bigint approver_id
+        datetime create_time
+        datetime update_time
+    }
+    SYSLOG {
+        bigint id PK
+        bigint user_id
+        varchar username
+        varchar action
+        varchar detail
+        varchar ip
+        datetime create_time
+    }
+    SYSCONFIG {
+        bigint id PK
+        varchar config_key UK
+        varchar config_value
+        varchar description
+        datetime create_time
+        datetime update_time
+    }
+        </div>
+        <div class="legend">
+            <span><b>PK</b> 主键</span>
+            <span><b>UK</b> 唯一键</span>
+            <span><b>FK</b> 逻辑外键</span>
+            <span>关系基数：1 端用 || ，多端用 o{</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>预约状态机</h2>
+        <div class="mermaid">
+flowchart LR
+    PENDING[待审批] -->|管理员通过| APPROVED[已通过]
+    PENDING -->|管理员驳回| REJECTED[已驳回]
+    PENDING -->|用户取消| CANCELLED[已取消]
+    PENDING -->|超时未审批| EXPIRED[已过期]
+    APPROVED -->|到期/管理员完成| COMPLETED[已完成]
+    APPROVED -->|用户/管理员取消| CANCELLED
+        </div>
+        <div class="note">说明：已开始（到开始时间）的已通过预约，仅管理员可取消；设备状态在审批通过时置"使用中"，完成/取消/到期后回刷"空闲"。</div>
+    </div>
+
+    <div class="card">
+        <h2>预约申请核心流程（含并发控制）</h2>
+        <div class="mermaid">
+flowchart TD
+    A[提交预约申请] --> B[参数校验：日期/时长/提前天数]
+    B --> C[悲观锁锁定设备行 FOR UPDATE]
+    C --> D{设备维修中?}
+    D -->|是| E[拒绝：设备维修中]
+    D -->|否| F{预约时段在实验室开放时间内?}
+    F -->|否| G[拒绝：超出开放时间]
+    F -->|是| H{同设备同时间段冲突?}
+    H -->|有| I[拒绝：时段已被预约]
+    H -->|无| J{本人该时段已有其他预约?}
+    J -->|有| K[拒绝：本人时段冲突]
+    J -->|无| L[生成待审批预约]
+    L --> M[提交审批队列]
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>7 张表结构速览</h2>
+        <table>
+            <thead><tr><th>表名</th><th>说明</th><th>主键</th><th>唯一键</th><th>关键索引</th></tr></thead>
+            <tbody>
+                <tr><td><code>user</code></td><td>用户表（管理员/教师/学生）</td><td class="pk">id</td><td class="uk">username</td><td>idx_role</td></tr>
+                <tr><td><code>equipment_category</code></td><td>设备类别表</td><td class="pk">id</td><td class="uk">name</td><td>-</td></tr>
+                <tr><td><code>lab</code></td><td>实验室表（位置/容量/开放时间）</td><td class="pk">id</td><td class="uk">name</td><td>-</td></tr>
+                <tr><td><code>equipment</code></td><td>实验设备表（乐观锁 version）</td><td class="pk">id</td><td class="uk">code</td><td class="fk">idx_category, idx_lab</td></tr>
+                <tr><td><code>reservation</code></td><td>设备预约表（核心，六态状态机）</td><td class="pk">id</td><td>-</td><td class="fk">idx_equipment_date, idx_user, idx_status, idx_date</td></tr>
+                <tr><td><code>sys_log</code></td><td>系统操作日志表（AOP 写入）</td><td class="pk">id</td><td>-</td><td>idx_action, idx_create_time</td></tr>
+                <tr><td><code>sys_config</code></td><td>系统配置表（预约规则键值）</td><td class="pk">id</td><td class="uk">config_key</td><td>-</td></tr>
+            </tbody>
+        </table>
+        <div class="note">完整字段定义、DDL 与初始化数据见 <code>db/init.sql</code>，详细说明见《数据库设计.md》。</div>
+    </div>
+</div>
+
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'default',
+        securityLevel: 'loose',
+        er: { useMaxWidth: true, fontSize: 12, titleFontSize: 13 },
+        flowchart: { curve: 'basis', useMaxWidth: true }
+    });
+</script>
+</body>
+</html>

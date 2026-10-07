@@ -1,0 +1,45 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: lab-equipment-reservation
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/lab_equipment?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+mybatis-plus:
+  configuration:
+    # 枚举按 name 存取（PENDING / APPROVED ...）
+    default-enum-type-handler: org.apache.ibatis.type.EnumTypeHandler
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: auto
+  mapper-locations: classpath*:mapper/*.xml
+  type-aliases-package: com.lab.equipment.entity
+
+# JWT 配置
+jwt:
+  secret: LabEquipmentReservationSystem2026SecretKeyForGraduationProject
+  # 过期时间（毫秒），默认 24 小时
+  expire-ms: 86400000
+  header: Authorization
+  prefix: "Bearer "
+
+# 定时任务：逾期预约自动处理（分钟）
+scheduler:
+  overdue-interval-ms: 60000
+
+logging:
+  level:
+    com.lab.equipment: info

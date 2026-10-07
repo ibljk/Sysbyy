@@ -1,0 +1,10 @@
+# 演示环境配置：连接本机独立 MySQL（临时实例，root 空密码，端口 3317）
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3317/lab_equipment?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: ""
+
+logging:
+  level:
+    com.lab.equipment: debug
