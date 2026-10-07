@@ -47,7 +47,8 @@
 |----|------|
 | 后端 | Spring Boot 2.7.18、MyBatis-Plus 3.5.3、MySQL 8.0、JWT（jjwt）、BCrypt、AOP、@Scheduled |
 | 前端 | Vue 3 + Element Plus + ECharts（依赖已内置 `frontend/lib/`，无 CDN、无构建步骤，**完全离线运行**） |
-| 开发环境 | JDK 8+、Maven 3.6+、MySQL 8.0 |
+| 部署 | 支持单端口模式：**嵌入式 H2** 替代 MySQL + 前端由后端托管，便于云端部署与分享 |
+| 开发环境 | JDK 8+、Maven 3.6+；完整模式另需 MySQL 8.0（单端口模式无需） |
 
 ## 二、系统特色
 
@@ -63,6 +64,7 @@
 - **操作日志**：AOP 切面自动记录登录、审批、设备变更、公告发布等关键操作，管理端支持按操作类型与关键字检索留痕。
 - **角色模型简化**：学生/教师统一为普通 **用户** 角色；管理员端与用户端菜单与首页分离。
 - **离线可演示**：前端所有依赖（Vue、Element Plus、ECharts、Axios、中文语言包）已内置到 `frontend/lib/`，答辩现场无网也能完整跑。
+- **一键部署 / 在线分享**：提供 `cloud` 运行模式——内置 H2 数据库 + 前端由后端托管，**一个 jar、一个端口**即可运行，无需安装 MySQL；可直接部署到云开发环境，生成链接供他人在线访问（见 [`docs/云端部署指南.md`](docs/云端部署指南.md)）。
 
 ## 三、功能模块
 
@@ -100,8 +102,10 @@ lab-equipment-reservation/
 │       │   ├── config/ util/ annotation/ enums/   # Role 枚举 ADMIN/USER
 │       │   └── LabEquipmentApplication.java
 │       └── resources/
-│           ├── application.yml          # 默认配置
-│           ├── application-demo.yml     # 演示环境配置
+│           ├── application.yml          # 默认配置（MySQL）
+│           ├── application-demo.yml     # 演示环境配置（本机独立 MySQL）
+│           ├── application-cloud.yml    # 单端口模式（嵌入式 H2 + 前端托管，免装 MySQL）
+│           ├── db/h2/                   # H2 建表与演示数据（由 db/init.sql 自动转换）
 │           └── mapper/*.xml             # 关联查询/统计 SQL（列表/详情按需返回归还图）
 ├── frontend/                    # Vue3 + Element Plus 前端（依赖在 lib/，无构建步骤）
 │   ├── index.html               # 系统名"智云实验设备预约管理系统"，favicon 云图标
@@ -129,22 +133,41 @@ lab-equipment-reservation/
 └── docs/
     ├── 系统设计文档.md           # 需求/架构/UML/接口/核心算法设计
     ├── 数据库设计.md             # E-R 图、表结构、关键 SQL
+    ├── 云端部署指南.md           # 单端口模式 + Cloud Studio 在线部署与分享
     ├── 竞品功能借鉴分析.md       # 对标 EquipShare 的功能比对与借鉴优先级
     ├── 项目总结与验收.md         # 功能清单、验证证据、演示步骤、启动手册
+    ├── screenshots/             # 8 张关键界面截图（README 预览用）
     └── 数据库设计.html           # E-R 图可视化（较早导出件，以 .md 为准）
 ```
 
 ## 五、快速启动
 
-### 1. 初始化数据库
+### 方式 A：单端口免配置运行（推荐，无需安装 MySQL）
+
+内置嵌入式数据库 H2，前端由后端一并托管，**整个系统只占一个端口**：
 
 ```bash
-mysql -uroot -p < db/init.sql                       # 建库 + 7 表 + 演示数据
+cd backend
+mvn clean package -DskipTests
+java -jar target/lab-equipment-reservation-1.0.0.jar --spring.profiles.active=cloud
+```
+
+浏览器打开 **http://localhost:8080** 即可。需要 **JDK 8+ 与 Maven**，不需要 MySQL。
+
+> 该模式也是**云端部署/分享给他人**所用的形态，详见 [`docs/云端部署指南.md`](docs/云端部署指南.md)。
+> 数据库为内存库，重启即恢复干净的演示数据。
+
+### 方式 B：MySQL 完整部署（本地开发）
+
+**1. 初始化数据库**
+
+```bash
+mysql -uroot -p < db/init.sql                       # 建库 + 11 表 + 演示数据
 mysql -uroot -p < db/seed-equipment-photos.sql      # 为 12 台演示设备配置真实感产品图路径
 # 配套：frontend/assets/equipment/EQ-XXXX.png 已随项目交付，启动前端服务即可访问
 ```
 
-### 2. 启动后端
+**2. 启动后端**
 
 ```bash
 cd backend && mvn spring-boot:run
@@ -153,7 +176,7 @@ cd backend && mvn spring-boot:run
 
 后端默认 `http://localhost:8080/api`，统一返回 `Result{code,message,data}`。
 
-### 3. 启动前端
+**3. 启动前端**
 
 ```bash
 cd frontend && python -m http.server 5173
@@ -161,7 +184,7 @@ cd frontend && python -m http.server 5173
 
 浏览器访问 `http://localhost:5173`。前端库全部本地，可离线运行。
 
-### 4. 演示账号（密码均为 `123456`）
+### 演示账号（密码均为 `123456`）
 
 | 账号 | 角色 | 可见菜单 |
 |------|------|----------|

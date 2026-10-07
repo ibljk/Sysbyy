@@ -2,8 +2,13 @@
  * API 请求层：axios 封装 + 统一鉴权 + 统一响应处理
  */
 (function (global) {
-    // 后端服务地址（前后端分离部署时请修改为实际地址）
-    const BASE_URL = global.API_BASE_URL || 'http://localhost:8080/api';
+    // 后端地址解析优先级：
+    //   1) window.API_BASE_URL 显式覆盖（分离部署到其他主机时使用）
+    //   2) 前端与后端分开跑（本地开发：前端 5173 / 后端 8080）→ 指向本机 8080
+    //   3) 其余情况（由后端托管前端 / 云端单端口部署）→ 同源 /api
+    const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(location.hostname);
+    const SEPARATED_DEV = location.protocol === 'file:' || (LOCAL_HOST && location.port !== '8080');
+    const BASE_URL = global.API_BASE_URL || (SEPARATED_DEV ? 'http://localhost:8080/api' : '/api');
 
     const TOKEN_KEY = 'lab_token';
     const USER_KEY = 'lab_user';

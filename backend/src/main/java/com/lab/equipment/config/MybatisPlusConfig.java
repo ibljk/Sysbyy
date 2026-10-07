@@ -1,6 +1,5 @@
 package com.lab.equipment.config;
 
-import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
@@ -13,7 +12,7 @@ import java.time.LocalDateTime;
 
 /**
  * MyBatis-Plus 配置：
- * 1. 分页插件
+ * 1. 分页插件（数据库类型自动识别，同时兼容 MySQL 与 H2 嵌入式库）
  * 2. 乐观锁插件（Equipment.version）
  * 3. 公共字段自动填充（createTime / updateTime）
  */
@@ -23,7 +22,8 @@ public class MybatisPlusConfig {
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
-        PaginationInnerInterceptor pagination = new PaginationInnerInterceptor(DbType.MYSQL);
+        // 不指定 DbType，由连接自动识别（MySQL / H2 均可）
+        PaginationInnerInterceptor pagination = new PaginationInnerInterceptor();
         pagination.setMaxLimit(500L);
         interceptor.addInnerInterceptor(pagination);
         interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());

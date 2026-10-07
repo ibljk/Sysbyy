@@ -101,13 +101,14 @@
                OR (IFNULL(end_date, date) = CURDATE() AND end_time &gt; CURTIME()))
     </select>
 
-    <!-- 近7日预约趋势（按预约日期） -->
+    <!-- 近7日预约趋势（按预约日期）
+         注：日期格式化与加减使用 MySQL / H2 双兼容写法（DATE_FORMAT/DATE_SUB 仅 MySQL 支持） -->
     <select id="selectWeekTrend" resultType="map">
-        SELECT DATE_FORMAT(date, '%m-%d')                        AS date,
+        SELECT CONCAT(LPAD(MONTH(date), 2, '0'), '-', LPAD(DAY(date), 2, '0')) AS date,
                COUNT(*)                                          AS count,
                SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) AS approved
         FROM reservation
-        WHERE date &gt;= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+        WHERE date &gt;= TIMESTAMPADD(DAY, -6, CURDATE())
         GROUP BY date
         ORDER BY date
     </select>
