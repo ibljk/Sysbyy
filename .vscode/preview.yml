@@ -1,0 +1,17 @@
+# Cloud Studio 自动运行配置
+# ------------------------------------------------------------
+# 作用：在 Cloud Studio 中打开本工作空间时，自动执行启动脚本并打开预览窗口
+# 说明：脚本会自动检测并安装 JDK / Maven → 编译 → 以单端口模式启动
+#       （前端由后端托管 + 内嵌 H2 数据库，无需安装 MySQL）
+# 端口：8080，可在底部「端口」面板一键设为公开，生成分享链接
+# ------------------------------------------------------------
+autoOpen: true
+apps:
+  - port: 8080
+    run: bash start-cloudstudio.sh
+    root: ./
+    name: 智云实验设备预约系统
+    description: 实验室设备预约管理系统（Spring Boot + Vue3，内嵌数据库免配置）
+    autoOpen: true
+    autoPreview: true
+    mainPort: true
